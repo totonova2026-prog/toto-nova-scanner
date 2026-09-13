@@ -3,9 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Toto Nova Scanner</title>
 
-  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <title>Toto Nova Barcode Scanner</title>
+
+  <script
+    src="https://unpkg.com/html5-qrcode"
+    type="text/javascript">
+  </script>
 
   <style>
     body {
@@ -19,32 +23,34 @@
     .card {
       max-width: 520px;
       margin: auto;
-      background: white;
+      background: #ffffff;
       border-radius: 16px;
       padding: 20px;
-      box-shadow: 0 4px 18px rgba(0,0,0,.08);
+      box-shadow: 0 4px 18px rgba(0,0,0,.10);
     }
 
     h1 {
       margin: 0 0 6px;
+      font-size: 28px;
     }
 
     .sub {
       color: #666;
-      margin-bottom: 18px;
+      margin-bottom: 20px;
     }
 
     #reader {
       width: 100%;
       max-width: 480px;
-      margin: 0 auto;
+      margin: 15px auto;
     }
 
     #status {
-      margin-top: 16px;
-      padding: 14px;
+      margin-top: 18px;
+      padding: 15px;
       border-radius: 10px;
       background: #f0f0f0;
+      line-height: 1.5;
     }
 
     button {
@@ -57,16 +63,17 @@
     }
 
     #start {
-      background: #111;
+      background: #111111;
       color: white;
     }
 
     #stop {
-      background: #ddd;
+      background: #dddddd;
+      color: #111111;
     }
 
     .ok {
-      color: #0a7a2f;
+      color: #087a2f;
       font-weight: bold;
     }
 
@@ -103,6 +110,7 @@
 
 </div>
 
+
 <script>
 
 let scanner = null;
@@ -110,27 +118,39 @@ let scanning = false;
 let sent = false;
 
 
-/* STATUS */
+/* ------------------------------
+   STATUS MESSAGE
+-------------------------------- */
 
 function setStatus(html) {
+
   document.getElementById("status").innerHTML = html;
+
 }
 
 
-/* START CAMERA */
+/* ------------------------------
+   START CAMERA
+-------------------------------- */
 
 function startScanner() {
 
-  if (scanning) return;
+  if (scanning) {
+    return;
+  }
 
   sent = false;
+
+  document.getElementById("reader").innerHTML = "";
 
   scanner = new Html5Qrcode("reader");
 
   scanner.start(
+
     {
       facingMode: "environment"
     },
+
     {
       fps: 10,
       qrbox: {
@@ -138,27 +158,31 @@ function startScanner() {
         height: 160
       }
     },
+
     onScanSuccess,
+
     function(errorMessage) {
       // Ignore normal scanning errors
     }
+
   )
+
   .then(function() {
 
     scanning = true;
 
     setStatus(
       "📷 Camera is ready.<br><br>" +
-      "Point your camera at the Toto Nova barcode."
+      "Point the camera at the Toto Nova barcode."
     );
 
   })
+
   .catch(function(error) {
 
     setStatus(
-      '<span class="err">' +
-      '❌ Camera could not start' +
-      '</span><br><br>' +
+      '<span class="err">Camera could not start.</span>' +
+      "<br><br>" +
       escapeHtml(String(error))
     );
 
@@ -167,124 +191,137 @@ function startScanner() {
 }
 
 
-/* BARCODE FOUND */
+/* ------------------------------
+   BARCODE FOUND
+-------------------------------- */
 
 function onScanSuccess(decodedText) {
 
-  if (!scanning || sent) return;
+  if (!scanning || sent) {
+    return;
+  }
 
   sent = true;
   scanning = false;
 
-  const code = String(decodedText).trim();
+  const barcode = String(decodedText).trim();
 
   setStatus(
     "✅ Barcode detected:<br><br>" +
-    "<b>" + escapeHtml(code) + "</b><br><br>" +
+    "<b>" + escapeHtml(barcode) + "</b>" +
+    "<br><br>" +
     "Sending to Toto Nova..."
   );
+
 
   if (scanner) {
 
     scanner.stop()
-      .catch(function(){})
+
+      .catch(function() {})
+
       .finally(function() {
 
-        sendBarcode(code);
+        sendBarcode(barcode);
 
       });
 
   } else {
 
-    sendBarcode(code);
+    sendBarcode(barcode);
 
   }
 
 }
 
 
-/* SEND BARCODE TO TOTO NOVA */
+/* ------------------------------
+   SEND BARCODE TO TOTO NOVA
+-------------------------------- */
 
-function sendBarcode(code) {
+function sendBarcode(barcode) {
 
-  const message = {
-    type: "TOTO_NOVA_BARCODE",
-    barcode: code
-  };
-
-
-  /* Try to send to the window that opened this scanner */
+  /*
+     Send barcode to the Toto Nova
+     Apps Script page.
+  */
 
   if (window.opener && !window.opener.closed) {
 
-    try {
+    window.opener.postMessage(
 
-      window.opener.postMessage(
-        message,
-        "https://script.google.com"
-      );
+      {
+        type: "TOTO_NOVA_BARCODE",
+        barcode: barcode
+      },
 
-      setStatus(
+      "*"
 
-        '<span class="ok">' +
-        '✅ Barcode sent to Toto Nova' +
-        '</span>' +
+    );
 
-        '<br><br>' +
+    setStatus(
 
-        '<b>Barcode:</b> ' +
-        escapeHtml(code) +
+      '<span class="ok">✅ Barcode sent to Toto Nova</span>' +
+      "<br><br>" +
+      "Barcode: <b>" +
+      escapeHtml(barcode) +
+      "</b>" +
+      "<br><br>" +
+      "Return to the Toto Nova screen."
 
-        '<br><br>' +
+    );
 
-        'Return to the Toto Nova screen.'
-
-      );
-
-      return;
-
-    } catch (error) {
-
-      console.log(error);
-
-    }
-
+    return;
   }
 
 
   /*
-   * If the browser does not provide window.opener,
-   * show the barcode so we know the camera worked.
-   */
+     If the scanner was opened as a
+     normal phone tab, window.opener
+     may not exist.
+
+     In that case save the barcode
+     and show instructions.
+  */
+
+  try {
+
+    localStorage.setItem(
+      "TOTO_NOVA_BARCODE",
+      barcode
+    );
+
+  } catch (e) {}
+
 
   setStatus(
 
-    '<span class="err">' +
-    '⚠️ Barcode detected, but Toto Nova connection was lost.' +
-    '</span>' +
+    '<span class="ok">✅ Barcode detected</span>' +
+    "<br><br>" +
 
-    '<br><br>' +
+    "Barcode: <b>" +
+    escapeHtml(barcode) +
+    "</b>" +
 
-    '<b>Barcode:</b> ' +
-    escapeHtml(code) +
+    "<br><br>" +
 
-    '<br><br>' +
-
-    'Please return to Toto Nova and open the scanner again.'
+    "Return to the Toto Nova screen."
 
   );
 
 }
 
 
-/* STOP CAMERA */
+/* ------------------------------
+   STOP CAMERA
+-------------------------------- */
 
 function stopScanner() {
 
   if (scanner && scanning) {
 
     scanner.stop()
-      .catch(function(){});
+      .catch(function() {});
 
   }
 
@@ -299,7 +336,9 @@ function stopScanner() {
 }
 
 
-/* SECURITY / HTML */
+/* ------------------------------
+   SECURITY / HTML ESCAPE
+-------------------------------- */
 
 function escapeHtml(value) {
 
