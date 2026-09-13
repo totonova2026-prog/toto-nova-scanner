@@ -4,64 +4,173 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Toto Nova Scanner</title>
+
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
   <style>
-    body{font-family:Arial,sans-serif;background:#f5f5f5;margin:0;padding:20px;text-align:center}
-    .card{max-width:520px;margin:auto;background:#fff;border-radius:16px;padding:20px;box-shadow:0 4px 18px rgba(0,0,0,.08)}
-    h1{margin:0 0 6px}.sub{color:#666;margin-bottom:18px}
-    #reader{width:100%;max-width:480px;margin:0 auto}
-    #status{margin-top:16px;padding:14px;border-radius:10px;background:#f0f0f0}
-    button{border:0;border-radius:10px;padding:14px 22px;font-size:17px;margin:6px;cursor:pointer}
-    #start{background:#111;color:#fff} #stop{background:#ddd}
-    .ok{color:#0a7a2f;font-weight:bold}.err{color:#b00020;font-weight:bold}
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .card {
+      max-width: 520px;
+      margin: auto;
+      background: white;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 4px 18px rgba(0,0,0,.08);
+    }
+
+    h1 {
+      margin: 0 0 6px;
+    }
+
+    .sub {
+      color: #666;
+      margin-bottom: 18px;
+    }
+
+    #reader {
+      width: 100%;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    #status {
+      margin-top: 16px;
+      padding: 14px;
+      border-radius: 10px;
+      background: #f0f0f0;
+    }
+
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 14px 22px;
+      font-size: 17px;
+      margin: 6px;
+      cursor: pointer;
+    }
+
+    #start {
+      background: #111;
+      color: white;
+    }
+
+    #stop {
+      background: #ddd;
+    }
+
+    .ok {
+      color: #0a7a2f;
+      font-weight: bold;
+    }
+
+    .err {
+      color: #b00020;
+      font-weight: bold;
+    }
   </style>
 </head>
-<body>
-<div class="card">
-  <h1>TOTO NOVA</h1>
-  <div class="sub">Mobile Barcode Scanner</div>
 
-  <button id="start" onclick="startScanner()">📷 Scan Product</button>
-  <button id="stop" onclick="stopScanner()">Stop</button>
+<body>
+
+<div class="card">
+
+  <h1>TOTO NOVA</h1>
+
+  <div class="sub">
+    Mobile Barcode Scanner
+  </div>
+
+  <button id="start" onclick="startScanner()">
+    📷 Scan Product
+  </button>
+
+  <button id="stop" onclick="stopScanner()">
+    Stop
+  </button>
 
   <div id="reader"></div>
-  <div id="status">Tap <b>Scan Product</b> and allow camera access.</div>
+
+  <div id="status">
+    Tap <b>Scan Product</b> and allow camera access.
+  </div>
+
 </div>
 
 <script>
+
 let scanner = null;
 let scanning = false;
 let sent = false;
+
+
+/* STATUS */
 
 function setStatus(html) {
   document.getElementById("status").innerHTML = html;
 }
 
+
+/* START CAMERA */
+
 function startScanner() {
+
   if (scanning) return;
 
   sent = false;
+
   scanner = new Html5Qrcode("reader");
 
   scanner.start(
-    { facingMode: "environment" },
-    { fps: 10, qrbox: { width: 280, height: 160 } },
+    {
+      facingMode: "environment"
+    },
+    {
+      fps: 10,
+      qrbox: {
+        width: 280,
+        height: 160
+      }
+    },
     onScanSuccess,
-    function() {}
+    function(errorMessage) {
+      // Ignore normal scanning errors
+    }
   )
   .then(function() {
+
     scanning = true;
-    setStatus("Camera is ready. Point it at the barcode.");
+
+    setStatus(
+      "📷 Camera is ready.<br><br>" +
+      "Point your camera at the Toto Nova barcode."
+    );
+
   })
   .catch(function(error) {
+
     setStatus(
-      '<span class="err">Camera could not start.</span><br><br>' +
+      '<span class="err">' +
+      '❌ Camera could not start' +
+      '</span><br><br>' +
       escapeHtml(String(error))
     );
+
   });
+
 }
 
+
+/* BARCODE FOUND */
+
 function onScanSuccess(decodedText) {
+
   if (!scanning || sent) return;
 
   sent = true;
@@ -70,65 +179,150 @@ function onScanSuccess(decodedText) {
   const code = String(decodedText).trim();
 
   setStatus(
-    "Barcode detected: <b>" + escapeHtml(code) +
-    "</b><br><br>Sending to Toto Nova..."
+    "✅ Barcode detected:<br><br>" +
+    "<b>" + escapeHtml(code) + "</b><br><br>" +
+    "Sending to Toto Nova..."
   );
 
   if (scanner) {
-    scanner.stop().catch(function(){}).finally(function() {
-      sendBarcode(code);
-    });
+
+    scanner.stop()
+      .catch(function(){})
+      .finally(function() {
+
+        sendBarcode(code);
+
+      });
+
   } else {
+
     sendBarcode(code);
+
   }
+
 }
+
+
+/* SEND BARCODE TO TOTO NOVA */
 
 function sendBarcode(code) {
+
+  const message = {
+    type: "TOTO_NOVA_BARCODE",
+    barcode: code
+  };
+
+
+  /* Try to send to the window that opened this scanner */
+
   if (window.opener && !window.opener.closed) {
 
-    window.opener.postMessage(
-      {
-        type: "TOTO_NOVA_BARCODE",
-        barcode: code
-      },
-      "*"
-    );
+    try {
 
-    setStatus(
-      '<span class="ok">✅ Barcode sent</span><br><br>' +
-      escapeHtml(code) +
-      '<br><br>Return to the Toto Nova screen for the stock result.'
-    );
+      window.opener.postMessage(
+        message,
+        "https://script.google.com"
+      );
 
-  } else {
+      setStatus(
 
-    setStatus(
-      '<span class="err">Scanner was not opened from Toto Nova.</span>' +
-      '<br><br>Open the scanner using the Scan Product button.'
-    );
+        '<span class="ok">' +
+        '✅ Barcode sent to Toto Nova' +
+        '</span>' +
+
+        '<br><br>' +
+
+        '<b>Barcode:</b> ' +
+        escapeHtml(code) +
+
+        '<br><br>' +
+
+        'Return to the Toto Nova screen.'
+
+      );
+
+      return;
+
+    } catch (error) {
+
+      console.log(error);
+
+    }
+
   }
+
+
+  /*
+   * If the browser does not provide window.opener,
+   * show the barcode so we know the camera worked.
+   */
+
+  setStatus(
+
+    '<span class="err">' +
+    '⚠️ Barcode detected, but Toto Nova connection was lost.' +
+    '</span>' +
+
+    '<br><br>' +
+
+    '<b>Barcode:</b> ' +
+    escapeHtml(code) +
+
+    '<br><br>' +
+
+    'Please return to Toto Nova and open the scanner again.'
+
+  );
+
 }
 
+
+/* STOP CAMERA */
+
 function stopScanner() {
+
   if (scanner && scanning) {
-    scanner.stop().catch(function(){});
+
+    scanner.stop()
+      .catch(function(){});
+
   }
 
   scanning = false;
-  setStatus("Scanner stopped. Tap Scan Product to start again.");
+  sent = false;
+
+  setStatus(
+    "Scanner stopped.<br><br>" +
+    "Tap <b>Scan Product</b> to start again."
+  );
+
 }
 
+
+/* SECURITY / HTML */
+
 function escapeHtml(value) {
-  return String(value).replace(/[&<>"']/g, function(m) {
-    return {
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#39;"
-    }[m];
-  });
+
+  return String(value).replace(
+    /[&<>"']/g,
+    function(m) {
+
+      return {
+
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+
+      }[m];
+
+    }
+  );
+
 }
+
 </script>
+
 </body>
 </html>
